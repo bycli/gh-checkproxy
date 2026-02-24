@@ -39,6 +39,22 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+nfpms:
+  - id: default
+    ids:
+      - gh-checkproxy
+    if: '{{ eq .Os "linux" }}'
+    package_name: gh-checkproxy
+    formats:
+      - deb
+    vendor: bycli
+    homepage: "https://github.com/bycli/gh-checkproxy"
+    maintainer: "bycli"
+    description: |
+      GitHub Checks API proxy for fine-grained personal access tokens.
+      Bridges the gap between fine-grained PATs and GitHub's Checks API.
+    license: MIT
+
 brews:
   - name: gh-checkproxy
     repository:

@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   release:
@@ -27,3 +29,76 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+
+  apt-repo:
+    runs-on: ubuntu-latest
+    needs: release
+    environment: github-pages
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev gnupg
+
+      - name: Import GPG key
+        run: |
+          mkdir -p .gnupg
+          chmod 700 .gnupg
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --homedir .gnupg --import
+
+      - name: Download .deb from release
+        run: |
+          gh release download "${{ github.ref_name }}" \
+            --pattern "*.deb" \
+            --dir debs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create apt repository structure
+        run: |
+          mkdir -p deb/pool/main deb/dists/stable/main/binary-amd64 deb/dists/stable/main/binary-arm64
+          mv debs/*.deb deb/pool/main/
+
+          cd deb
+          for arch in amd64 arm64; do
+            dpkg-scanpackages --arch "$arch" pool/ 2>/dev/null | gzip -9 > "dists/stable/main/binary-$arch/Packages.gz"
+            gunzip -c "dists/stable/main/binary-$arch/Packages.gz" > "dists/stable/main/binary-$arch/Packages"
+          done
+
+          cd dists/stable
+          chmod +x ../../../scripts/generate-release.sh
+          ../../../scripts/generate-release.sh > Release
+
+          gpg --homedir ../../../.gnupg --clearsign -o InRelease Release
+          gpg --homedir ../../../.gnupg -a -b -s -o Release.gpg Release
+
+          gpg --homedir ../../../.gnupg --export --armor > ../../gpg.key
+
+          cat > ../../index.html << 'INDEX'
+<!DOCTYPE html>
+<html><head><title>gh-checkproxy APT repository</title></head>
+<body>
+<h1>gh-checkproxy APT repository</h1>
+<p>Add this repository:</p>
+<pre>curl -fsSL https://bycli.github.io/gh-checkproxy/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/gh-checkproxy.gpg
+echo "deb [signed-by=/usr/share/keyrings/gh-checkproxy.gpg] https://bycli.github.io/gh-checkproxy stable main" | sudo tee /etc/apt/sources.list.d/gh-checkproxy.list
+sudo apt-get update
+sudo apt-get install gh-checkproxy</pre>
+</body></html>
+INDEX
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@3
+        with:
+          path: deb
+
+  deploy-pages:
+    runs-on: ubuntu-latest
+    needs: apt-repo
+    environment: github-pages
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@4

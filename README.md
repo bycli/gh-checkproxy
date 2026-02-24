@@ -19,13 +19,11 @@ brew install gh-checkproxy
 ### apt (Ubuntu, Debian)
 
 ```bash
-# Add the repository
-sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/gh-checkproxy.gpg] https://github.com/bycli/gh-checkproxy/releases/download/latest /main/" > /etc/apt/sources.list.d/gh-checkproxy.list'
+curl -fsSL https://bycli.github.io/gh-checkproxy/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/gh-checkproxy.gpg
+echo "deb [signed-by=/usr/share/keyrings/gh-checkproxy.gpg] https://bycli.github.io/gh-checkproxy stable main" | sudo tee /etc/apt/sources.list.d/gh-checkproxy.list
 sudo apt-get update
 sudo apt-get install gh-checkproxy
 ```
-
-> Note: Direct apt integration via GitHub Releases is in progress. For now, use manual installation.
 
 ### From source
 
