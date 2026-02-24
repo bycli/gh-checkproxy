@@ -1,3 +1,5 @@
-gh-checkproxy
+# Binary (go build output at repo root)
+/gh-checkproxy
+
 dist/
 .DS_Store
