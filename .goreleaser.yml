@@ -43,7 +43,6 @@ nfpms:
   - id: default
     ids:
       - gh-checkproxy
-    if: '{{ eq .Os "linux" }}'
     package_name: gh-checkproxy
     formats:
       - deb
