@@ -16,12 +16,6 @@ brew tap bycli/tap
 brew install gh-checkproxy
 ```
 
-### Snap (Linux)
-
-```bash
-snap install gh-checkproxy
-```
-
 ### apt (Ubuntu, Debian)
 
 ```bash
@@ -31,7 +25,7 @@ sudo apt-get update
 sudo apt-get install gh-checkproxy
 ```
 
-> Note: Direct apt integration via GitHub Releases is in progress. For now, use Snap or manual installation.
+> Note: Direct apt integration via GitHub Releases is in progress. For now, use manual installation.
 
 ### From source
 
