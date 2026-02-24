@@ -9,12 +9,29 @@ The same binary serves two roles:
 
 ## Install
 
-### Homebrew
+### Homebrew (macOS, Linux)
 
 ```bash
 brew tap bycli/tap
 brew install gh-checkproxy
 ```
+
+### Snap (Linux)
+
+```bash
+snap install gh-checkproxy
+```
+
+### apt (Ubuntu, Debian)
+
+```bash
+# Add the repository
+sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/gh-checkproxy.gpg] https://github.com/bycli/gh-checkproxy/releases/download/latest /main/" > /etc/apt/sources.list.d/gh-checkproxy.list'
+sudo apt-get update
+sudo apt-get install gh-checkproxy
+```
+
+> Note: Direct apt integration via GitHub Releases is in progress. For now, use Snap or manual installation.
 
 ### From source
 

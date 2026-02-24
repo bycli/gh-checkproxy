@@ -1,0 +1,30 @@
+name: gh-checkproxy
+version: 0.1.0
+summary: GitHub Checks API proxy for fine-grained personal access tokens
+description: |
+  gh-checkproxy bridges the gap between fine-grained PATs and GitHub's Checks API.
+
+  Fine-grained personal access tokens cannot call the GitHub Checks API. This proxy
+  holds a classic token on a trusted server, validates incoming fine-grained tokens,
+  and proxies only allowed check-related endpoints.
+
+  Use the server to proxy requests from CI/agents, and the client to check PR status.
+
+grade: stable
+confinement: strict
+base: core22
+
+apps:
+  gh-checkproxy:
+    command: gh-checkproxy
+    plugs:
+      - network
+      - home
+
+parts:
+  gh-checkproxy:
+    plugin: go
+    source: https://github.com/bycli/gh-checkproxy.git
+    source-tag: v0.1.0
+    build-packages:
+      - git
