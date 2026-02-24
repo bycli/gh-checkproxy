@@ -51,10 +51,10 @@ func printHelp() {
 
 SERVER COMMANDS (run on trusted host):
   gh-checkproxy config [flags]     Configure the proxy (interactive)
-    --classic-token <token>          GitHub classic PAT with repo scope
     --org <org>                      Restrict to this organization (optional)
     --port <port>                    HTTP listen port (default: 8080)
     --cache-ttl <duration>           Validation cache TTL (default: 5m)
+  Token: $GH_CHECKPROXY_CLASSIC_TOKEN, reuse $GH_TOKEN (when classic), or enter interactively (masked)
   gh-checkproxy serve              Start the proxy server
   gh-checkproxy status             Show current configuration
 

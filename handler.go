@@ -112,7 +112,7 @@ func ProxyHandler(cfg *Config, validator *Validator) http.HandlerFunc {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
-		setGitHubHeaders(upstreamReq, cfg.ClassicToken)
+		setGitHubHeaders(upstreamReq, cfg.GetClassicToken())
 
 		upstreamResp, err := upstreamClient.Do(upstreamReq)
 		if err != nil {
@@ -146,6 +146,10 @@ func runServe() {
 	cfg, err := LoadConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n\nRun 'gh-checkproxy config' to set up.\n", err)
+		os.Exit(1)
+	}
+	if cfg.GetClassicToken() == "" {
+		fmt.Fprintf(os.Stderr, "error: no classic token — set GH_CHECKPROXY_CLASSIC_TOKEN, GH_TOKEN, or re-run 'gh-checkproxy config'\n")
 		os.Exit(1)
 	}
 

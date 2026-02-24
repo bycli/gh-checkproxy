@@ -17,10 +17,41 @@ import (
 
 // Config holds the persistent server configuration.
 type Config struct {
-	ClassicToken       string   `json:"classic_token"`
-	AllowedOrgs        []string `json:"allowed_orgs,omitempty"`
-	Port               int      `json:"port"`
-	ValidationCacheTTL string   `json:"validation_cache_ttl"`
+	ClassicToken        string   `json:"classic_token"`
+	AllowedOrgs         []string `json:"allowed_orgs,omitempty"`
+	Port                int      `json:"port"`
+	ValidationCacheTTL  string   `json:"validation_cache_ttl"`
+}
+
+// isClassicToken returns true if the token has a prefix indicating it can access
+// the Checks API (classic PAT). GitHub token prefixes: ghp_=classic, gho_=OAuth.
+func isClassicToken(token string) bool {
+	return strings.HasPrefix(token, "ghp_") || strings.HasPrefix(token, "gho_")
+}
+
+// GetClassicToken returns the token to use for upstream GitHub API calls.
+// Preference order: GH_CHECKPROXY_CLASSIC_TOKEN → GH_TOKEN → config.
+func (c *Config) GetClassicToken() string {
+	return firstNonEmpty(
+		strings.TrimSpace(os.Getenv("GH_CHECKPROXY_CLASSIC_TOKEN")),
+		strings.TrimSpace(os.Getenv("GH_TOKEN")),
+		c.ClassicToken,
+	)
+}
+
+// classicTokenSource returns which source provides the token (for status display).
+func (c *Config) classicTokenSource() string {
+	t := c.GetClassicToken()
+	if t == "" {
+		return ""
+	}
+	if s := strings.TrimSpace(os.Getenv("GH_CHECKPROXY_CLASSIC_TOKEN")); s != "" && s == t {
+		return "GH_CHECKPROXY_CLASSIC_TOKEN"
+	}
+	if s := strings.TrimSpace(os.Getenv("GH_TOKEN")); s != "" && s == t {
+		return "GH_TOKEN"
+	}
+	return "config"
 }
 
 // ConfigPath returns the path to the config file.
@@ -67,7 +98,6 @@ func SaveConfig(cfg *Config) error {
 // runConfig handles the `config` subcommand — interactive or flag-driven.
 func runConfig(args []string) error {
 	fs := flag.NewFlagSet("config", flag.ContinueOnError)
-	classicToken := fs.String("classic-token", "", "GitHub classic personal access token")
 	org := fs.String("org", "", "Restrict proxy to these organizations, comma-separated (optional)")
 	port := fs.Int("port", 0, "HTTP listen port (default: 8080)")
 	cacheTTL := fs.String("cache-ttl", "", "Token validation cache TTL (default: 5m)")
@@ -85,8 +115,31 @@ func runConfig(args []string) error {
 	reader := bufio.NewReader(os.Stdin)
 
 	// --- Classic token ---
-	if *classicToken != "" {
-		cfg.ClassicToken = *classicToken
+	// Preference: GH_CHECKPROXY_CLASSIC_TOKEN → GH_TOKEN → interactive. Env vars are never stored.
+	// Never accept tokens as CLI flags — they leak via ps, /proc, and shell history.
+	if envToken := os.Getenv("GH_CHECKPROXY_CLASSIC_TOKEN"); envToken != "" {
+		cfg.ClassicToken = "" // never stored; read from env at runtime
+	} else if cfg.ClassicToken == "" && cfg.GetClassicToken() != "" {
+		// Already using env (no stored token); keep it for partial config update
+	} else if ghToken := strings.TrimSpace(os.Getenv("GH_TOKEN")); ghToken != "" && isClassicToken(ghToken) {
+		fmt.Print("GH_TOKEN is set and appears to be a classic token (ghp_/gho_). Use it for the proxy? (no token stored) [y/n]: ")
+		line, _ := reader.ReadString('\n')
+		line = strings.TrimSpace(strings.ToLower(line))
+		if line == "y" || line == "yes" || line == "" {
+			cfg.ClassicToken = "" // never stored
+		} else {
+			fmt.Print("Enter classic token (input hidden): ")
+			tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+			fmt.Println()
+			if err != nil {
+				return fmt.Errorf("reading token: %w", err)
+			}
+			token := strings.TrimSpace(string(tokenBytes))
+			if token == "" {
+				return fmt.Errorf("classic token is required — set GH_CHECKPROXY_CLASSIC_TOKEN, use GH_TOKEN, or enter interactively")
+			}
+			cfg.ClassicToken = token
+		}
 	} else {
 		fmt.Print("Enter classic token (input hidden): ")
 		tokenBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
@@ -96,7 +149,7 @@ func runConfig(args []string) error {
 		}
 		token := strings.TrimSpace(string(tokenBytes))
 		if token == "" {
-			return fmt.Errorf("classic token is required")
+			return fmt.Errorf("classic token is required — set GH_CHECKPROXY_CLASSIC_TOKEN, use GH_TOKEN, or enter interactively")
 		}
 		cfg.ClassicToken = token
 	}
@@ -105,8 +158,12 @@ func runConfig(args []string) error {
 	if *org != "" {
 		cfg.AllowedOrgs = splitComma(*org)
 	} else {
+		tokenForFetch := cfg.GetClassicToken()
+		if tokenForFetch == "" {
+			return fmt.Errorf("no token available for org fetch — set GH_TOKEN or GH_CHECKPROXY_CLASSIC_TOKEN")
+		}
 		fmt.Print("Fetching organizations...")
-		orgs, err := fetchUserOrgs(cfg.ClassicToken)
+		orgs, err := fetchUserOrgs(tokenForFetch)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, " (could not fetch: %v)\n", err)
 		} else {
@@ -187,7 +244,15 @@ func runStatus() error {
 	}
 
 	fmt.Printf("Config: %s\n\n", ConfigPath())
-	fmt.Printf("  Classic token:  %s\n", maskToken(cfg.ClassicToken))
+	t := cfg.GetClassicToken()
+	src := cfg.classicTokenSource()
+	if t == "" {
+		fmt.Printf("  Classic token:  not set\n")
+	} else if src != "" && src != "config" {
+		fmt.Printf("  Classic token:  (from %s) %s\n", src, maskToken(t))
+	} else {
+		fmt.Printf("  Classic token:  %s\n", maskToken(t))
+	}
 	if len(cfg.AllowedOrgs) > 0 {
 		fmt.Printf("  Allowed orgs:   %s\n", strings.Join(cfg.AllowedOrgs, ", "))
 	} else {

@@ -56,16 +56,21 @@ gh-checkproxy config
 ```
 
 Interactive prompts will ask for:
-- **Classic token** — a [classic PAT](https://github.com/settings/tokens) with `repo` scope (input is masked)
+- **Classic token** — a [classic PAT](https://github.com/settings/tokens) with `repo` scope (input is masked), or use an env var to avoid storage
 - **Organizations** — optionally restrict the proxy to specific orgs (fetched from your token)
 - **Port** — HTTP listen port (default: 8080)
 - **Cache TTL** — how long to cache token validation results (default: 5m)
 
-Or use flags to skip prompts:
+**Avoid storing the token:** Set `GH_CHECKPROXY_CLASSIC_TOKEN` or `GH_TOKEN` (classic prefix `ghp_`/`gho_`) before running `config`. The token is read from the env at runtime and never written to disk. Ensure the env var is set when running `gh-checkproxy serve`.
+
+For scripted/CI setup:
 
 ```bash
-gh-checkproxy config --classic-token ghp_xxx --org myorg --port 8080
+export GH_CHECKPROXY_CLASSIC_TOKEN=ghp_xxx
+gh-checkproxy config --org myorg --port 8080
 ```
+
+> **Never pass tokens as CLI arguments** — they are visible in `ps`, `/proc`, and shell history.
 
 Config is saved to `~/.config/gh-checkproxy/config.json` (permissions `0600`).
 
@@ -146,6 +151,8 @@ All other paths return 404. Non-GET methods return 405.
 - Validation results are cached in memory (keyed by `SHA-256(token/owner/repo)`) with a configurable TTL
 - The proxy only forwards to `api.github.com` — no SSRF vectors
 - Organization restrictions limit which repos can be accessed through the proxy
+- Config file is stored with `0600` permissions (owner-only read/write) — verify the host is trusted
+- **The server listens on plain HTTP** — run on `localhost` or behind a TLS reverse proxy (nginx, Caddy) to protect tokens in transit
 
 ## Token requirements
 
