@@ -74,18 +74,7 @@ jobs:
 
           gpg --homedir ../../../.gnupg --export --armor > ../../gpg.key
 
-          cat > ../../index.html << 'INDEX'
-<!DOCTYPE html>
-<html><head><title>gh-checkproxy APT repository</title></head>
-<body>
-<h1>gh-checkproxy APT repository</h1>
-<p>Add this repository:</p>
-<pre>curl -fsSL https://bycli.github.io/gh-checkproxy/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/gh-checkproxy.gpg
-echo "deb [signed-by=/usr/share/keyrings/gh-checkproxy.gpg] https://bycli.github.io/gh-checkproxy stable main" | sudo tee /etc/apt/sources.list.d/gh-checkproxy.list
-sudo apt-get update
-sudo apt-get install gh-checkproxy</pre>
-</body></html>
-INDEX
+          cp ../../../scripts/apt-index.html ../../index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
