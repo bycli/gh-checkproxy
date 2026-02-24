@@ -131,10 +131,10 @@ func ProxyHandler(cfg *Config, validator *Validator) http.HandlerFunc {
 	}
 }
 
-// orgAllowed reports whether owner is in the allowed orgs list.
+// orgAllowed reports whether owner is in the allowed orgs list (case-insensitive).
 func orgAllowed(allowedOrgs []string, owner string) bool {
 	for _, o := range allowedOrgs {
-		if o == owner {
+		if strings.EqualFold(o, owner) {
 			return true
 		}
 	}
