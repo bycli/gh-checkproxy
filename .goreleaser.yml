@@ -1,0 +1,55 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: gh-checkproxy
+    binary: gh-checkproxy
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+archives:
+  - id: gh-checkproxy
+    builds:
+      - gh-checkproxy
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: "checksums.txt"
+
+brews:
+  - name: gh-checkproxy
+    repository:
+      owner: bycli
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/bycli/gh-checkproxy"
+    description: "GitHub Checks API proxy for fine-grained personal access tokens"
+    license: "MIT"
+    install: |
+      bin.install "gh-checkproxy"
+    test: |
+      system "#{bin}/gh-checkproxy", "--help"
